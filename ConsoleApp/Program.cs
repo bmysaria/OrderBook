@@ -24,7 +24,7 @@ namespace ConsoleApp
             orderBook.Fill(Side.Ask, askTuple);
            //Console.WriteLine("Asks:");
            //orderBook.PrintSide(Side.Ask);
-           Console.WriteLine("Get top:");
+           //Console.WriteLine("Get top:");
            
            
            var bidTuple = new List<Tuple<decimal, decimal>>();
@@ -41,11 +41,12 @@ namespace ConsoleApp
             orderBook.Fill(Side.Bid, bidTuple);
            // Console.WriteLine("Bids:");
             //orderBook.PrintSide(Side.Bid);
-            var res = orderBook.GetTop(Side.Bid, 5, true);
+            /*var res = orderBook.GetTop(Side.Bid, 125.80m, true);
             foreach (var elem in res)
             {
                 Console.WriteLine(elem.ToString());
-            }
+            }*/
+            Console.WriteLine(orderBook.GetPriceWhenCumulGreater(Side.Ask, 130));
         }
     }
 }

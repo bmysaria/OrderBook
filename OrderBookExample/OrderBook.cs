@@ -92,7 +92,7 @@ namespace OrderBookExample
             var chosenSide = GetChosenSide(side);
             var res = new Level[Math.Min(count, chosenSide.Count())];
             decimal previousSize = 0;
-            var en = chosenSide.GetEnumerator();
+            using var en = chosenSide.GetEnumerator();
             
             for (int i = 0; i < count; i++)
             {
@@ -110,12 +110,37 @@ namespace OrderBookExample
 
         public Level[] GetTop(Side side, decimal price, bool cumulative = false)
         {
-            return new Level[]{};
+            var chosenSide = GetChosenSide(side);
+            var res = new List<Level>();
+            using var en = chosenSide.GetEnumerator();
+            decimal previousSize = 0;
+
+            while (en.MoveNext() && en.Current.Key != price)
+            {
+                if (!cumulative)
+                    res.Add(new Level(en.Current.Key, en.Current.Value));
+                {
+                    res.Add(new Level(en.Current.Key, en.Current.Value, en.Current.Value + previousSize));
+                    previousSize += en.Current.Value;
+                }
+            }
+            return res.ToArray();
         }
 
         public decimal? GetPriceWhenCumulGreater(Side side, decimal cumul)
         {
-            return 1;
+            var chosenSide = GetChosenSide(side);
+            using var en = chosenSide.GetEnumerator();
+            decimal prevSize = 0;
+
+            while (en.MoveNext())
+            {
+                var currentCumSize = en.Current.Value + prevSize;
+                if (currentCumSize > cumul)
+                    return en.Current.Key;
+                prevSize += en.Current.Value;
+            }
+            return 0;
         }
 
         public bool IsEmpty()
