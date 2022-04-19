@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,8 +7,8 @@ namespace OrderBookExample
 {
     public enum Side
     {
-        Bid, //наверху максимальная цена, по которой покупатель согласен купить товар, выгодно - наименьшую (первую)
-        Ask //наверху наименьшая цена, по которой продавец согласен продать товар, выгодно - наибольшую (последнюю)
+        Bid, //продажа, наверху (первый элемент) максимальная цена - reverse
+        Ask //покупка, наверху (первый элемент) наименьшая цена
     }
     
     public class OrderBookBase
@@ -26,43 +27,41 @@ namespace OrderBookExample
         }
     }
 
+    class DescendingComparer<T> : IComparer<T> where T : IComparable<T> {
+        public int Compare(T x, T y) {
+            return y.CompareTo(x);
+        }
+    }
+
     public class OrderBook: OrderBookBase, IOrderBook
     {
-        public SortedDictionary<decimal, decimal> Bids; 
-        public SortedDictionary<decimal, decimal> Asks;
-        public SortedDictionary<decimal, decimal>? ChosenSide;
-        public IEnumerator<KeyValuePair<decimal, decimal>>? Enumerator;
+        private SortedDictionary<decimal, decimal> Bids; 
+        private SortedDictionary<decimal, decimal> Asks;
 
         public OrderBook()
         {
-            Bids = new SortedDictionary<decimal, decimal>();
+            Bids = new SortedDictionary<decimal, decimal>(new DescendingComparer<decimal>());
             Asks = new SortedDictionary<decimal, decimal>();
         }
-        public void SetChosenSide(Side side)
+        public SortedDictionary<decimal,decimal> GetChosenSide(Side side)
         {
-            ChosenSide = side == Side.Ask ? Asks : Bids;
+            return  side == Side.Ask ? Asks : Bids;
         }
-        
-        public void SetSideEnumenator(Side side)
-        {
-            Enumerator = side == Side.Bid ? Bids.GetEnumerator() : Asks.Reverse().GetEnumerator();
-            Enumerator.MoveNext();
-        }
-        
+
         public void Update(Side side, decimal price, decimal size, bool ignoreError = false)
         {
-            SetChosenSide(side);
-            if (ChosenSide != null) ChosenSide[price] = size;
+            var chosenSide = GetChosenSide(side);
+            chosenSide[price] = size;
         }
 
         public void Fill(Side side, IEnumerable<Tuple<decimal, decimal>> data)
         {
-            SetChosenSide(side);
+            var chosenSide = GetChosenSide(side);
 
             foreach (var tuple in data)
             {
-                if (ChosenSide != null && !ChosenSide.ContainsKey(tuple.Item1))
-                    ChosenSide.Add(tuple.Item1, tuple.Item2);
+                if (chosenSide != null && !chosenSide.ContainsKey(tuple.Item1))
+                    chosenSide.Add(tuple.Item1, tuple.Item2);
                 else
                     Update(side, tuple.Item1, tuple.Item2, false);
             }
@@ -78,83 +77,59 @@ namespace OrderBookExample
 
         public BidAsk GetBidAsk()
         {
-            var bidPair = Bids.First(); //выгодно - наименьшую (первую)
-            var askPair = Asks.Last(); //выгодно - наибольшую (последнюю)
-            
             var bidAsk = new BidAsk()
             {
-                AskPrice = askPair.Key,
-                AskVolume = askPair.Value, 
-                BidPrice = bidPair.Key,
-                BidVolume = bidPair.Value
+                AskPrice = Asks.First().Key,
+                AskVolume = Asks.First().Value, 
+                BidPrice = Bids.First().Key,
+                BidVolume = Bids.First().Value
             };
             return bidAsk;
         }
-
-       
-
+        
         public Level[] GetTop(Side side, int count, bool cumulative = false)
         {
-            List<Level> level = new List<Level>();
+            var chosenSide = GetChosenSide(side);
+            var res = new Level[Math.Min(count, chosenSide.Count())];
             decimal previousSize = 0;
-            SetSideEnumenator(side);
-
+            var en = chosenSide.GetEnumerator();
+            
             for (int i = 0; i < count; i++)
             {
-                if (cumulative)
+                en.MoveNext();
+                if (!cumulative)
+                    res[i] = new Level(en.Current.Key, en.Current.Value);
+                else
                 {
-                    if (Enumerator != null)
-                    {
-                        level.Add(new Level(Enumerator.Current.Key, Enumerator.Current.Value,
-                            Enumerator.Current.Value + previousSize));
-                        previousSize = Enumerator.Current.Value;
-                    }
+                    res[i] = new Level(en.Current.Key, en.Current.Value, en.Current.Value + previousSize);
+                    previousSize += en.Current.Value;
                 }
-                else if (Enumerator != null) level.Add(new Level(Enumerator.Current.Key, Enumerator.Current.Value));
-
-                Enumerator?.MoveNext();
             }
-            return level.ToArray();
+            return res;
         }
 
         public Level[] GetTop(Side side, decimal price, bool cumulative = false)
         {
-            List<Level> level = new List<Level>();
-            decimal previousSize = 0;
-            SetSideEnumenator(side);
-
-            while(Enumerator != null && Enumerator.Current.Key != price)
-            {
-                if (cumulative)
-                {
-                    level.Add(new Level(Enumerator.Current.Key, Enumerator.Current.Value, Enumerator.Current.Value + previousSize));
-                    previousSize = Enumerator.Current.Value;
-                }
-                else
-                    level.Add(new Level(Enumerator.Current.Key, Enumerator.Current.Value));
-                Enumerator.MoveNext();
-            }
-            return level.ToArray();
+            return new Level[]{};
         }
 
         public decimal? GetPriceWhenCumulGreater(Side side, decimal cumul)
         {
-            decimal previousSize = 0;
-            SetChosenSide(side);
-            SetSideEnumenator(side);
-            while (Enumerator != null && Enumerator.MoveNext())
-            {
-                var currentCumul = Enumerator.Current.Value + previousSize;
-                if (currentCumul == cumul)
-                    return Enumerator.Current.Key;
-            }
-
-            return 0;
+            return 1;
         }
 
         public bool IsEmpty()
         {
             return Bids.Count == 0 && Asks.Count == 0;
+        }
+
+        public void PrintSide(Side side)
+        {
+            var chosenSide = GetChosenSide(side);
+            foreach (var elem in chosenSide)
+            {
+                Console.WriteLine(elem.ToString());
+            }
         }
     }
 }

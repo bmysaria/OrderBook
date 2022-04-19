@@ -22,13 +22,12 @@ namespace ConsoleApp
             askTuple.Add(new Tuple<decimal, decimal>(126.03m, 10));
             askTuple.Add(new Tuple<decimal, decimal>(126.04m, 4));
             orderBook.Fill(Side.Ask, askTuple);
-            //Console.WriteLine("ASKS"); //наверху наименьшая цена, по которой продавец согласен продать товар, выгодно - наибольшую (последнюю)
-            /*foreach (var item in orderBook.Asks.Reverse())
-            {
-                Console.WriteLine(item.ToString());
-            }*/
-            
-            var bidTuple = new List<Tuple<decimal, decimal>>();
+           //Console.WriteLine("Asks:");
+           //orderBook.PrintSide(Side.Ask);
+           Console.WriteLine("Get top:");
+           
+           
+           var bidTuple = new List<Tuple<decimal, decimal>>();
             bidTuple.Add(new Tuple<decimal, decimal>(125.85m, 7));
             bidTuple.Add(new Tuple<decimal, decimal>(125.84m, 11));
             bidTuple.Add(new Tuple<decimal, decimal>(125.83m, 65));
@@ -40,18 +39,9 @@ namespace ConsoleApp
             bidTuple.Add(new Tuple<decimal, decimal>(125.77m, 26));
             bidTuple.Add(new Tuple<decimal, decimal>(125.76m, 287));
             orderBook.Fill(Side.Bid, bidTuple);
-            //Console.WriteLine("BIDS");
-            /*foreach (var item in orderBook.Bids)
-            {
-                Console.WriteLine(item.ToString());
-            }*/
-            //Console.WriteLine(orderBook.IsEmpty());
-            
-            //Console.WriteLine(orderBook.Clear());
-            
-            //Console.WriteLine(orderBook.GetBidAsk());
-
-            var res = orderBook.GetTop(Side.Bid, 125.84m, true);
+           // Console.WriteLine("Bids:");
+            //orderBook.PrintSide(Side.Bid);
+            var res = orderBook.GetTop(Side.Bid, 5, true);
             foreach (var elem in res)
             {
                 Console.WriteLine(elem.ToString());
